@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Memory Manager</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+               background: #0d1117; color: #c9d1d9; }
+        .app { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { display: flex; align-items: center; justify-content: space-between;
+                  padding: 16px 0; border-bottom: 1px solid #21262d; margin-bottom: 20px; }
+        .header h1 { font-size: 24px; color: #58a6ff; }
+        .header .actions { display: flex; gap: 8px; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #30363d;
+               background: #21262d; color: #c9d1d9; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #30363d; }
+        .btn-primary { background: #238636; border-color: #238636; color: #fff; }
+        .btn-primary:hover { background: #2ea043; }
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #21262d; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent;
+               color: #8b949e; transition: all 0.2s; }
+        .tab:hover { color: #c9d1d9; }
+        .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+        .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+        .search-box input { flex: 1; padding: 10px 14px; border-radius: 6px;
+                            border: 1px solid #30363d; background: #0d1117; color: #c9d1d9;
+                            font-size: 15px; }
+        .search-box input:focus { outline: none; border-color: #58a6ff; }
+        .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filters select { padding: 6px 10px; border-radius: 6px; border: 1px solid #30363d;
+                          background: #161b22; color: #c9d1d9; font-size: 13px; }
+        .session-list { display: flex; flex-direction: column; gap: 8px; }
+        .session-card { padding: 16px; border: 1px solid #21262d; border-radius: 8px;
+                        background: #161b22; cursor: pointer; transition: all 0.2s; }
+        .session-card:hover { border-color: #58a6ff; background: #1c2333; }
+        .session-card .title { font-size: 16px; font-weight: 600; color: #c9d1d9;
+                               margin-bottom: 6px; white-space: nowrap; overflow: hidden;
+                               text-overflow: ellipsis; }
+        .session-card .meta { font-size: 13px; color: #8b949e; display: flex; gap: 16px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px;
+                 font-size: 12px; font-weight: 500; }
+        .badge-copilot { background: #1f3a5f; color: #58a6ff; }
+        .badge-codex { background: #2d1f3f; color: #bc8cff; }
+        .detail-view { background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+                       padding: 20px; }
+        .detail-header { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
+        .detail-header h2 { font-size: 20px; color: #c9d1d9; margin-bottom: 8px; }
+        .msg { padding: 12px 16px; margin: 8px 0; border-radius: 8px; line-height: 1.6; }
+        .msg-user { background: #1c2333; border-left: 3px solid #58a6ff; }
+        .msg-assistant { background: #0d1117; border-left: 3px solid #3fb950; }
+        .msg-tool { background: #161b22; border-left: 3px solid #d29922; font-size: 13px;
+                    max-height: 200px; overflow-y: auto; }
+        .msg-system { background: #161b22; border-left: 3px solid #8b949e; font-size: 13px; }
+        .msg .role { font-size: 12px; font-weight: 600; text-transform: uppercase;
+                     margin-bottom: 4px; }
+        .msg .role-user { color: #58a6ff; }
+        .msg .role-assistant { color: #3fb950; }
+        .msg .role-tool { color: #d29922; }
+        .msg .role-system { color: #8b949e; }
+        .msg .content { white-space: pre-wrap; word-break: break-word; }
+        .msg .content mark { background: #634d0a; color: #e3b341; padding: 1px 3px;
+                             border-radius: 3px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                      gap: 16px; margin-bottom: 20px; }
+        .stat-card { padding: 20px; background: #161b22; border: 1px solid #21262d;
+                     border-radius: 8px; text-align: center; }
+        .stat-card .value { font-size: 36px; font-weight: 700; color: #58a6ff; }
+        .stat-card .label { font-size: 14px; color: #8b949e; margin-top: 4px; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+        .loading { text-align: center; padding: 40px; color: #8b949e; }
+        .back-btn { cursor: pointer; color: #58a6ff; margin-bottom: 12px; display: inline-block; }
+        .export-menu { position: relative; display: inline-block; }
+        .export-dropdown { position: absolute; top: 100%; right: 0; background: #161b22;
+                           border: 1px solid #30363d; border-radius: 6px; padding: 4px;
+                           display: none; z-index: 10; min-width: 160px; }
+        .export-dropdown.show { display: block; }
+        .export-dropdown a { display: block; padding: 8px 12px; color: #c9d1d9;
+                             text-decoration: none; border-radius: 4px; font-size: 14px; }
+        .export-dropdown a:hover { background: #21262d; }
+        .sync-status { font-size: 13px; color: #3fb950; }
+    </style>
+</head>
+<body>
+<div id="app" class="app">
+    <div class="header">
+        <h1>🧠 Agent Memory Manager</h1>
+        <div class="actions">
+            <span class="sync-status" v-if="syncStatus">{{ syncStatus }}</span>
+            <button class="btn" @click="syncLocal">📥 同步本地</button>
+            <button class="btn btn-primary" @click="syncAll">🔄 同步全部</button>
+            <div class="export-menu">
+                <button class="btn" @click="showExport = !showExport">📤 导出</button>
+                <div class="export-dropdown" :class="{show: showExport}">
+                    <a :href="apiBase + '/api/export/all?format=json'" target="_blank">导出全部 (JSON)</a>
+                    <a :href="apiBase + '/api/export/all?format=openai_jsonl'" target="_blank">导出 Fine-tune (JSONL)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab" :class="{active: tab === 'sessions'}" @click="tab = 'sessions'">💬 会话列表</div>
+        <div class="tab" :class="{active: tab === 'search'}" @click="tab = 'search'">🔍 搜索</div>
+        <div class="tab" :class="{active: tab === 'stats'}" @click="tab = 'stats'; loadStats()">📊 统计</div>
+        <div class="tab" :class="{active: tab === 'sync'}" @click="tab = 'sync'; loadSyncLog()">⚙️ 同步</div>
+    </div>
+
+    <!-- Sessions Tab -->
+    <div v-if="tab === 'sessions' && !selectedSession">
+        <div class="search-box">
+            <input v-model="sessionSearch" @keyup.enter="loadSessions(1)" placeholder="搜索会话内容...">
+            <button class="btn btn-primary" @click="loadSessions(1)">搜索</button>
+        </div>
+        <div class="filters">
+            <select v-model="filterSource" @change="loadSessions(1)">
+                <option value="">所有来源</option>
+                <option value="copilot">Copilot</option>
+                <option value="codex">Codex</option>
+            </select>
+            <select v-model="filterServer" @change="loadSessions(1)">
+                <option value="">所有服务器</option>
+                <option v-for="s in servers" :value="s">{{ s }}</option>
+            </select>
+        </div>
+        <div v-if="loading" class="loading">加载中...</div>
+        <div v-else class="session-list">
+            <div v-for="s in sessions" :key="s.id" class="session-card" @click="openSession(s.id)">
+                <div class="title">{{ s.title || s.id }}</div>
+                <div class="meta">
+                    <span class="badge" :class="'badge-' + s.source">{{ s.source }}</span>
+                    <span>📁 {{ s.server_name || 'local' }}</span>
+                    <span>🕐 {{ formatTime(s.start_time) }}</span>
+                    <span>💬 {{ s.message_count }} messages</span>
+                </div>
+            </div>
+        </div>
+        <div class="pagination" v-if="totalPages > 1">
+            <button class="btn" :disabled="page <= 1" @click="loadSessions(page - 1)">← 上一页</button>
+            <span style="padding: 8px;">{{ page }} / {{ totalPages }}</span>
+            <button class="btn" :disabled="page >= totalPages" @click="loadSessions(page + 1)">下一页 →</button>
+        </div>
+    </div>
+
+    <!-- Session Detail -->
+    <div v-if="tab === 'sessions' && selectedSession" class="detail-view">
+        <span class="back-btn" @click="selectedSession = null">← 返回列表</span>
+        <div class="detail-header">
+            <h2>{{ selectedSession.title || selectedSession.id }}</h2>
+            <div class="meta">
+                <span class="badge" :class="'badge-' + selectedSession.source">{{ selectedSession.source }}</span>
+                <span>📁 {{ selectedSession.server_name || 'local' }}</span>
+                <span>🕐 {{ formatTime(selectedSession.start_time) }}</span>
+                <span>📂 {{ selectedSession.cwd }}</span>
+            </div>
+            <div style="margin-top: 8px;">
+                <a :href="apiBase + '/api/export/session/' + selectedSession.id + '?format=markdown'"
+                   target="_blank" class="btn" style="font-size: 12px;">导出 Markdown</a>
+                <a :href="apiBase + '/api/export/session/' + selectedSession.id + '?format=json'"
+                   target="_blank" class="btn" style="font-size: 12px;">导出 JSON</a>
+            </div>
+        </div>
+        <div v-for="msg in selectedSession.messages" :key="msg.id" class="msg"
+             :class="'msg-' + msg.role">
+            <div class="role" :class="'role-' + msg.role">
+                {{ msg.role === 'user' ? '👤 User' : msg.role === 'assistant' ? '🤖 Assistant' :
+                   msg.role === 'tool' ? '🔧 Tool' : '📋 ' + msg.role }}
+            </div>
+            <div class="content">{{ msg.content }}</div>
+        </div>
+    </div>
+
+    <!-- Search Tab -->
+    <div v-if="tab === 'search'">
+        <div class="search-box">
+            <input v-model="searchQuery" @keyup.enter="doSearch" placeholder="全文搜索对话内容...">
+            <button class="btn btn-primary" @click="doSearch">🔍 搜索</button>
+        </div>
+        <div class="filters">
+            <select v-model="searchSource">
+                <option value="">所有来源</option>
+                <option value="copilot">Copilot</option>
+                <option value="codex">Codex</option>
+            </select>
+        </div>
+        <div v-if="searchLoading" class="loading">搜索中...</div>
+        <div v-else class="session-list">
+            <div v-for="r in searchResults" :key="r.id" class="session-card"
+                 @click="openSession(r.session_id)">
+                <div class="meta" style="margin-bottom: 6px;">
+                    <span class="badge" :class="'badge-' + r.source">{{ r.source }}</span>
+                    <span>{{ r.title || r.session_id }}</span>
+                    <span>{{ r.role }}</span>
+                    <span>🕐 {{ formatTime(r.timestamp) }}</span>
+                </div>
+                <div class="content" style="font-size: 14px;" v-html="r.snippet || r.content"></div>
+            </div>
+            <div v-if="searchResults.length === 0 && searchQuery && !searchLoading"
+                 class="loading">没有找到匹配的结果</div>
+        </div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div v-if="tab === 'stats'">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value">{{ stats.total_sessions || 0 }}</div>
+                <div class="label">总会话数</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ stats.total_messages || 0 }}</div>
+                <div class="label">总消息数</div>
+            </div>
+            <div class="stat-card" v-for="(count, source) in (stats.by_source || {})" :key="source">
+                <div class="value">{{ count }}</div>
+                <div class="label">{{ source }}</div>
+            </div>
+            <div class="stat-card" v-for="(count, server) in (stats.by_server || {})" :key="server">
+                <div class="value">{{ count }}</div>
+                <div class="label">{{ server }}</div>
+            </div>
+        </div>
+        <h3 style="margin: 20px 0 12px; color: #8b949e;">最近会话</h3>
+        <div class="session-list">
+            <div v-for="s in (stats.recent_sessions || [])" :key="s.id" class="session-card"
+                 @click="openSession(s.id)">
+                <div class="title">{{ s.title || s.id }}</div>
+                <div class="meta">
+                    <span class="badge" :class="'badge-' + s.source">{{ s.source }}</span>
+                    <span>{{ s.server_name || 'local' }}</span>
+                    <span>🕐 {{ formatTime(s.start_time) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Tab -->
+    <div v-if="tab === 'sync'">
+        <div style="margin-bottom: 20px;">
+            <h3 style="color: #8b949e; margin-bottom: 12px;">配置的服务器</h3>
+            <div class="session-list">
+                <div v-for="s in syncServers" :key="s.name" class="session-card">
+                    <div class="title">{{ s.name }}</div>
+                    <div class="meta">
+                        <span>🖥️ {{ s.host }}:{{ s.port }}</span>
+                        <span>👤 {{ s.user }}</span>
+                        <span :style="{color: s.enabled ? '#3fb950' : '#f85149'}">
+                            {{ s.enabled ? '✅ 启用' : '❌ 禁用' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <h3 style="color: #8b949e; margin-bottom: 12px;">同步日志</h3>
+        <div class="session-list">
+            <div v-for="log in syncLogs" :key="log.id" class="session-card">
+                <div class="meta">
+                    <span>{{ log.server_name }}</span>
+                    <span>{{ log.source }}</span>
+                    <span :style="{color: log.status === 'success' ? '#3fb950' : '#f85149'}">
+                        {{ log.status }}
+                    </span>
+                    <span>📥 {{ log.sessions_synced }} sessions</span>
+                    <span>🕐 {{ log.started_at }}</span>
+                    <span v-if="log.error_message" style="color: #f85149;">{{ log.error_message }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted, computed } = Vue;
+
+createApp({
+    setup() {
+        const apiBase = window.location.origin;
+        const tab = ref('sessions');
+        const loading = ref(false);
+        const sessions = ref([]);
+        const page = ref(1);
+        const totalPages = ref(1);
+        const selectedSession = ref(null);
+        const sessionSearch = ref('');
+        const filterSource = ref('');
+        const filterServer = ref('');
+        const servers = ref([]);
+        const searchQuery = ref('');
+        const searchSource = ref('');
+        const searchResults = ref([]);
+        const searchLoading = ref(false);
+        const stats = ref({});
+        const syncServers = ref([]);
+        const syncLogs = ref([]);
+        const syncStatus = ref('');
+        const showExport = ref(false);
+
+        async function api(path) {
+            const res = await fetch(apiBase + path);
+            return res.json();
+        }
+
+        async function loadSessions(p = 1) {
+            loading.value = true;
+            page.value = p;
+            let url = `/api/sessions?page=${p}&page_size=30`;
+            if (filterSource.value) url += `&source=${filterSource.value}`;
+            if (filterServer.value) url += `&server=${filterServer.value}`;
+            if (sessionSearch.value) url += `&search=${encodeURIComponent(sessionSearch.value)}`;
+            const data = await api(url);
+            sessions.value = data.sessions || [];
+            totalPages.value = data.total_pages || 1;
+            // Collect unique servers
+            const srvSet = new Set();
+            sessions.value.forEach(s => { if (s.server_name) srvSet.add(s.server_name); });
+            servers.value = [...srvSet];
+            loading.value = false;
+        }
+
+        async function openSession(id) {
+            loading.value = true;
+            const data = await api(`/api/sessions/${encodeURIComponent(id)}`);
+            selectedSession.value = data;
+            loading.value = false;
+        }
+
+        async function doSearch() {
+            if (!searchQuery.value) return;
+            searchLoading.value = true;
+            let url = `/api/search?q=${encodeURIComponent(searchQuery.value)}&limit=50`;
+            if (searchSource.value) url += `&source=${searchSource.value}`;
+            const data = await api(url);
+            searchResults.value = data.results || [];
+            searchLoading.value = false;
+        }
+
+        async function loadStats() {
+            stats.value = await api('/api/sessions/stats');
+        }
+
+        async function loadSyncLog() {
+            const data = await api('/api/sync/log');
+            syncLogs.value = data.logs || [];
+            const srvData = await api('/api/sync/servers');
+            syncServers.value = srvData.servers || [];
+        }
+
+        async function syncLocal() {
+            syncStatus.value = '同步中...';
+            try {
+                await fetch(apiBase + '/api/sync/local', { method: 'POST' });
+                syncStatus.value = '✅ 本地同步完成';
+                loadSessions(1);
+            } catch (e) {
+                syncStatus.value = '❌ 同步失败';
+            }
+            setTimeout(() => { syncStatus.value = ''; }, 3000);
+        }
+
+        async function syncAll() {
+            syncStatus.value = '同步全部中...';
+            try {
+                await fetch(apiBase + '/api/sync/now', { method: 'POST' });
+                syncStatus.value = '✅ 全部同步完成';
+                loadSessions(1);
+            } catch (e) {
+                syncStatus.value = '❌ 同步失败';
+            }
+            setTimeout(() => { syncStatus.value = ''; }, 3000);
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '';
+            try {
+                const d = new Date(ts);
+                return d.toLocaleString('zh-CN');
+            } catch { return ts; }
+        }
+
+        onMounted(() => {
+            loadSessions(1);
+        });
+
+        // Close export menu on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.export-menu')) showExport.value = false;
+        });
+
+        return {
+            apiBase, tab, loading, sessions, page, totalPages,
+            selectedSession, sessionSearch, filterSource, filterServer, servers,
+            searchQuery, searchSource, searchResults, searchLoading,
+            stats, syncServers, syncLogs, syncStatus, showExport,
+            loadSessions, openSession, doSearch, loadStats, loadSyncLog,
+            syncLocal, syncAll, formatTime,
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

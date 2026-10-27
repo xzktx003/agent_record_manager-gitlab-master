@@ -1,0 +1,26 @@
+[Unit]
+Description=Agent Record Manager
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=%h/work/agent_record_manager
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=%h/.npm-global/bin:%h/.local/bin:%h/miniconda3/bin:/usr/local/bin:/usr/bin:/bin
+# Optional host-level proxy values. Each user's Provider decides whether to
+# inherit or strip them through its own "use proxy" setting.
+EnvironmentFile=-%h/.config/agent-record-manager/environment
+ExecStart=%h/work/agent_record_manager/run.sh
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGINT
+KillMode=control-group
+TimeoutStartSec=60
+TimeoutStopSec=10
+LimitNOFILE=65536
+SyslogIdentifier=agent-record-manager
+
+[Install]
+WantedBy=default.target

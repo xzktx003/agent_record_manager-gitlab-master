@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+data/
+*.db
+*.db-shm
+*.db-wal
+/tmp/
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/
+node_modules/
+.DS_Store
+/sync_temp/
+.omx/
+
+# Runtime logs may contain private session information.
+logs/

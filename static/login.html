@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>登录 · Agent Memory</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #17221d;
+            --muted: #68736d;
+            --line: #dfe7e1;
+            --accent: #176b4d;
+            --accent-hover: #0f573e;
+            --paper: rgba(255, 255, 255, .93);
+            --danger: #a53f37;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 28px 18px;
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at 15% 12%, rgba(58, 142, 103, .16), transparent 34%),
+                radial-gradient(circle at 88% 86%, rgba(193, 145, 67, .14), transparent 32%),
+                #f3f6f2;
+        }
+        .shell { width: min(100%, 430px); }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0 0 18px 4px;
+        }
+        .mark {
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
+            color: white;
+            font-weight: 800;
+            letter-spacing: -.04em;
+            background: linear-gradient(145deg, #23845f, #10533c);
+            box-shadow: 0 10px 24px rgba(23, 107, 77, .22);
+        }
+        .brand strong { display: block; font-size: 16px; }
+        .brand span { color: var(--muted); font-size: 12px; }
+        .card {
+            padding: 32px;
+            border: 1px solid rgba(207, 218, 210, .9);
+            border-radius: 22px;
+            background: var(--paper);
+            box-shadow: 0 24px 70px rgba(40, 57, 48, .12);
+            backdrop-filter: blur(16px);
+        }
+        h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.035em; }
+        .lead { margin: 0 0 26px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+        .field { margin: 0 0 17px; }
+        label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 650; }
+        input {
+            width: 100%;
+            height: 46px;
+            padding: 0 13px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            outline: none;
+            color: var(--ink);
+            background: white;
+            font: inherit;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        input:focus {
+            border-color: #4e9c7b;
+            box-shadow: 0 0 0 3px rgba(37, 132, 95, .13);
+        }
+        button {
+            width: 100%;
+            height: 46px;
+            margin-top: 4px;
+            border: 0;
+            border-radius: 11px;
+            color: white;
+            background: var(--accent);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background .15s, transform .15s;
+        }
+        button:hover { background: var(--accent-hover); }
+        button:active { transform: translateY(1px); }
+        button:disabled { cursor: wait; opacity: .62; }
+        .error {
+            display: none;
+            margin: 0 0 17px;
+            padding: 10px 12px;
+            border: 1px solid rgba(165, 63, 55, .22);
+            border-radius: 10px;
+            color: var(--danger);
+            background: rgba(165, 63, 55, .07);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .error.show { display: block; }
+        .foot {
+            margin: 17px 4px 0;
+            color: var(--muted);
+            text-align: center;
+            font-size: 12px;
+        }
+        [hidden] { display: none !important; }
+        @media (max-width: 480px) {
+            body { align-items: start; padding-top: 13vh; }
+            .card { padding: 26px 22px; border-radius: 18px; }
+        }
+    </style>
+</head>
+<body>
+<main class="shell">
+    <div class="brand">
+        <div class="mark">AM</div>
+        <div><strong>Agent Memory</strong><span>你的数据，只属于你的账户</span></div>
+    </div>
+    <section class="card" aria-live="polite">
+        <form id="login-form">
+            <h1>欢迎回来</h1>
+            <p class="lead">登录后访问自己的会话、工作记忆、设备与模型配置。</p>
+            <div id="login-error" class="error" role="alert"></div>
+            <div class="field">
+                <label for="username">用户名</label>
+                <input id="username" name="username" autocomplete="username" maxlength="64" required autofocus>
+            </div>
+            <div class="field">
+                <label for="password">密码</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+            </div>
+            <button id="login-button" type="submit">登录</button>
+        </form>
+
+        <form id="change-form" hidden>
+            <h1>设置新密码</h1>
+            <p class="lead">这是临时密码登录。请先设置至少 12 个字符的新密码。</p>
+            <div id="change-error" class="error" role="alert"></div>
+            <div class="field">
+                <label for="current-password">当前密码</label>
+                <input id="current-password" type="password" autocomplete="current-password" maxlength="1024" required>
+            </div>
+            <div class="field">
+                <label for="new-password">新密码</label>
+                <input id="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required>
+            </div>
+            <div class="field">
+                <label for="confirm-password">确认新密码</label>
+                <input id="confirm-password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required>
+            </div>
+            <button id="change-button" type="submit">保存并进入服务</button>
+        </form>
+    </section>
+    <p class="foot">会话 Cookie 不可被页面脚本读取；账户数据使用独立存储空间。</p>
+</main>
+<script>
+(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('next') || '/';
+    const allowedNextPaths = new Set(['/', '/docs', '/redoc']);
+    const safeReturnPath = value => {
+        try {
+            const target = new URL(value, location.origin);
+            if (target.origin !== location.origin || !allowedNextPaths.has(target.pathname)) {
+                return '/';
+            }
+            return `${target.pathname}${target.search}${target.hash}`;
+        } catch (_) {
+            return '/';
+        }
+    };
+    const nextPath = safeReturnPath(requested);
+    const loginForm = document.getElementById('login-form');
+    const changeForm = document.getElementById('change-form');
+    const loginButton = document.getElementById('login-button');
+    const changeButton = document.getElementById('change-button');
+    let loginPassword = '';
+
+    const cookie = name => {
+        const prefix = `${name}=`;
+        const part = document.cookie.split(';').map(value => value.trim())
+            .find(value => value.startsWith(prefix));
+        return part ? decodeURIComponent(part.slice(prefix.length)) : '';
+    };
+    const showError = (id, message) => {
+        const target = document.getElementById(id);
+        target.textContent = message || '请求失败，请稍后重试。';
+        target.classList.add('show');
+    };
+    const clearError = id => {
+        const target = document.getElementById(id);
+        target.textContent = '';
+        target.classList.remove('show');
+    };
+    const showChange = () => {
+        loginForm.hidden = true;
+        changeForm.hidden = false;
+        if (loginPassword) document.getElementById('current-password').value = loginPassword;
+        document.getElementById(loginPassword ? 'new-password' : 'current-password').focus();
+    };
+    const request = async (path, options = {}) => {
+        const response = await fetch(path, {cache: 'no-store', ...options});
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(payload.detail || `请求失败（${response.status}）`);
+            error.status = response.status;
+            throw error;
+        }
+        return payload;
+    };
+
+    loginForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        clearError('login-error');
+        loginButton.disabled = true;
+        loginButton.textContent = '正在登录…';
+        loginPassword = document.getElementById('password').value;
+        try {
+            const result = await request('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: loginPassword,
+                }),
+            });
+            if (result.user && result.user.must_change_password) showChange();
+            else location.replace(nextPath);
+        } catch (error) {
+            showError('login-error', error.message);
+        } finally {
+            loginButton.disabled = false;
+            loginButton.textContent = '登录';
+        }
+    });
+
+    changeForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        clearError('change-error');
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmation = document.getElementById('confirm-password').value;
+        if (newPassword !== confirmation) {
+            showError('change-error', '两次输入的新密码不一致。');
+            return;
+        }
+        changeButton.disabled = true;
+        changeButton.textContent = '正在保存…';
+        try {
+            await request('/api/auth/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': cookie('arm_csrf'),
+                },
+                body: JSON.stringify({current_password: currentPassword, new_password: newPassword}),
+            });
+            location.replace(nextPath);
+        } catch (error) {
+            showError('change-error', error.message);
+        } finally {
+            changeButton.disabled = false;
+            changeButton.textContent = '保存并进入服务';
+        }
+    });
+
+    (async () => {
+        try {
+            const status = await request('/api/auth/status');
+            if (!status.enabled) {
+                location.replace(nextPath);
+                return;
+            }
+            if (!status.initialized) {
+                showError('login-error', '服务尚未创建管理员账户，请联系服务管理员。');
+                loginButton.disabled = true;
+                return;
+            }
+            try {
+                const current = await request('/api/auth/me');
+                if (current.authenticated) {
+                    if ((current.user || {}).must_change_password || params.get('change') === '1') {
+                        showChange();
+                    } else {
+                        location.replace(nextPath);
+                    }
+                }
+            } catch (error) {
+                if (error.status !== 401) throw error;
+            }
+        } catch (error) {
+            showError('login-error', error.message);
+        }
+    })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+# Agent Memory Manager 配置文件
+# 服务器列表: 用于远程同步对话记录
+servers:
+  - name: "Server-23"
+    host: "10.30.0.23"
+    port: 10022
+    user: "yujy"
+    password: ""
+    copilot_dir: "~/.copilot/session-state"
+    codex_dir: "~/.codex"
+    opencode_dir: "~/.local/share/opencode"
+    claude_projects_dir: "~/.claude/projects"
+    vscode_dir: "~/.vscode-server"
+    enabled: true
+    is_local: true    # This server is the local machine — skip SSH, use local sync
+
+  - name: "Server-17"
+    host: "10.30.0.17"
+    port: 22
+    user: "jiangyong.yu"
+    password: ""
+    copilot_dir: "~/.copilot/session-state"
+    codex_dir: "~/.codex"
+    opencode_dir: "~/.local/share/opencode"
+    claude_projects_dir: "~/.claude/projects"
+    vscode_dir: "~/.vscode-server"
+    enabled: true
+
+  - name: "Mac-Local"
+    host: "10.64.36.250"
+    port: 22
+    user: "jiangyongyu"
+    password: ""
+    copilot_dir: "~/.copilot/session-state"
+    codex_dir: "~/.codex"
+    opencode_dir: "~/.local/share/opencode"
+    claude_projects_dir: "~/.claude/projects"
+    vscode_dir: "~/.vscode-server"
+    enabled: true
+    is_mac: true    # Mac desktop - sync VS Code chatSessions
+
+# 本地目录 (当前服务器)
+local:
+  copilot_dir: "~/.copilot/session-state"
+  codex_dir: "~/.codex"
+  opencode_dir: ""  # 留空时遵循 OPENCODE_DB_PATH / OPENCODE_HOME / XDG_DATA_HOME
+  claude_projects_dir: "~/.claude/projects"
+  vscode_dir: "~/.vscode-server"
+  mac_chat_sessions_dir: "./data/mac_chat_sessions"
+
+# 同步设置
+sync:
+  interval_minutes: 5      # 自动同步间隔(分钟)
+  auto_start: true          # 启动时自动开始同步
+  temp_dir: "/tmp/agent-memory-sync"
+  max_run_seconds: 1800     # 普通同步超过 30 分钟视为卡死，由健康检查触发恢复
+
+# 数据库
+database:
+  path: "./data/agent_memory.db"
+
+# Web服务
+web:
+  host: "0.0.0.0"
+  port: 18080
+
+# 登录与租户隔离。当前部署仍为 HTTP；接入 HTTPS 反向代理后必须将
+# cookie_secure 改为 true。
+auth:
+  enabled: true
+  session_hours: 12
+  cookie_secure: false
+  allowed_origins: []
+
+# 工作记忆 Agent。Codex CLI 由模型管理自动接入；其他 Provider 在页面手动添加。
+agent:
+  enabled: true
+  timeout_seconds: 600
+  max_input_chars: 12000
+  max_segments_per_session: 2
+  settle_seconds: 300           # 持续写入的会话静默 5 分钟后再分析，避免重复调用
+  auto_enrich: true
+  auto_start_worker: true
+  backfill_on_start: false      # 在“数据源与 Agent”页确认后启动历史回填
+  recent_backfill_days: 90
+  auto_approve_threshold: 0.92
+  redact_before_send: true
+  allowed_sources: []            # 空列表表示允许全部来源
+  excluded_sources: []           # 例如 ["vscode-debug-log"]

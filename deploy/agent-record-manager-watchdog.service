@@ -1,0 +1,17 @@
+[Unit]
+Description=Agent Record Manager readiness watchdog
+After=agent-record-manager.service
+
+[Service]
+Type=simple
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=ARM_WATCHDOG_URL=http://127.0.0.1:18080
+Environment=ARM_WATCHDOG_INTERVAL=10
+Environment=ARM_WATCHDOG_FAILURES=3
+ExecStart=%h/work/agent_record_manager/scripts/service_watchdog.sh
+Restart=always
+RestartSec=5
+SyslogIdentifier=agent-record-manager-watchdog
+
+[Install]
+WantedBy=default.target
